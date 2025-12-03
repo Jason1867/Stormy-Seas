@@ -3,28 +3,59 @@
 #include "ofMain.h"
 
 class ofApp : public ofBaseApp {
+
 public:
 	void setup();
 	void update();
 	void draw();
 
-	// Ocean mesh
-	ofMesh oceanMesh;
-	std::vector<glm::vec3> vertices;
+	void keyPressed(int key);
+	void keyReleased(int key);
+	void mouseMoved(int x, int y);
+	void mouseDragged(int x, int y, int button);
+	void mousePressed(int x, int y, int button);
+	void mouseReleased(int x, int y, int button);
+	void mouseEntered(int x, int y);
+	void mouseExited(int x, int y);
+	void windowResized(int w, int h);
+	void dragEvent(ofDragInfo dragInfo);
+	void gotMessage(ofMessage msg);
 
-	// Mesh resolution and size
-	int N; // grid resolution
-	float L; // ocean patch size
+private:
+	float gerstnerWave(glm::vec3 pos, float t);
+
+	// Mesh and grid
+	ofMesh oceanMesh;
+	vector<glm::vec3> vertices;
+	int N; // Grid resolution
+	float L; // Grid size
 
 	// Gerstner wave parameters
-	std::vector<float> amplitudes;
-	std::vector<float> wavelengths;
-	std::vector<float> speeds;
-	std::vector<glm::vec2> directions;
-
-	// Wave function
-	float gerstnerWave(glm::vec3 pos, float t);
+	vector<float> amplitudes;
+	vector<float> wavelengths;
+	vector<float> speeds;
+	vector<glm::vec2> directions;
 
 	// Camera
 	ofEasyCam cam;
+
+	// Shader system
+	ofShader oceanShader;
+
+	// Lighting
+	glm::vec3 lightPosition;
+	glm::vec3 lightColor;
+
+	// Water colors
+	glm::vec3 waterColorDeep;
+	glm::vec3 waterColorShallow;
+	glm::vec3 foamColor;
+
+	// Atmospheric effects
+	glm::vec3 fogColor;
+	float fogDensity;
+
+	// Animation
+	bool animateWaves;
+	float timeScale;
 };

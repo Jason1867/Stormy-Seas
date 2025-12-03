@@ -1,14 +1,11 @@
-#include "ofMain.h"
 #include "ofApp.h"
+#include "ofMain.h"
 
-int main( ){
-	ofGLWindowSettings settings;
-	settings.setSize(1024, 768);
-	settings.windowMode = OF_WINDOW; 
-
-	auto window = ofCreateWindow(settings);
-
-	ofRunApp(window, std::make_shared<ofApp>());
-	ofRunMainLoop();
-
+//========================================================================
+int main() {
+	ofGLFWWindowSettings settings;
+	settings.setGLVersion(3, 2); // Use OpenGL 3.2
+	settings.setSize(1920, 1080);
+	ofCreateWindow(settings);
+	ofRunApp(new ofApp());
 }

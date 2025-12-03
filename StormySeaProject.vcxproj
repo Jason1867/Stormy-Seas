@@ -244,6 +244,9 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="bin\data\ocean.frag" />
+    <None Include="bin\data\ocean.vert" />
+    <None Include="bin\data\ocean_simple.frag" />
     <None Include="bin\data\shaders\water.frag" />
     <None Include="bin\data\shaders\water.vert" />
   </ItemGroup>
