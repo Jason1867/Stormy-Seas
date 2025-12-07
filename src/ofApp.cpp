@@ -7,7 +7,7 @@ void ofApp::setup() {
 	ofDisableArbTex(); // normalized coordinates
 
 	// Mesh setup
-	N = 2048; // Higher resolution for better foam detail
+	N = 1024; // Higher resolution for better foam detail
 	L = 2000.0f; // size
 
 	oceanMesh.setMode(OF_PRIMITIVE_TRIANGLES);
