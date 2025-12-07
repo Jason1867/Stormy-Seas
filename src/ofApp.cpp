@@ -2,7 +2,7 @@
 #include "ofMath.h" // for ofNoise
 
 //--------------------------------------------------------------
-void ofApp::setup() {
+void ofApp::setup() { // Test Edit....
 	ofEnableDepthTest();
 	ofDisableArbTex(); // normalized coordinates
 
