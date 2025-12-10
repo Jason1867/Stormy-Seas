@@ -22,6 +22,19 @@ public:
 	void gotMessage(ofMessage msg);
 
 private:
+	struct Cloud { // Cloud structure (for generating multiple).
+		ofMesh mesh; // Mesh of cloud.
+		glm::vec3 pos; // Position of cloud.
+		float size; // Size of cloud.
+	};
+
+	void build_Cloud(Cloud& cloud, const glm::vec3& pos, float size); // Builds the cloud.
+
+	vector<Cloud> clouds; // List of clouds.
+	ofShader cloudShader; // Cloud Shader.
+	glm::vec3 cloudColor; // Cloud Color.
+
+
 	float gerstnerWave(glm::vec3 pos, float t);
 
 	// Mesh and grid
@@ -58,4 +71,7 @@ private:
 	// Animation
 	bool animateWaves;
 	float timeScale;
+
+	// Wireframe Enabling:
+	bool Enable_WF = false; // Change to true if you wish to see wireframes instead of shaded drawings.
 };
