@@ -3,12 +3,18 @@
 
 //--------------------------------------------------------------
 void ofApp::setup() {
+	ofEnableGLDebugLog();
+	ofLogNotice() << "GL_VERSION: " << (const char)glGetString(GL_VERSION);
+	ofLogNotice() << "GLSL_VERSION: " << (const char)glGetString(GL_SHADING_LANGUAGE_VERSION);
+
 	ofEnableDepthTest();
 	ofDisableArbTex(); // normalized coordinates
 
 	// Mesh setup
 	N = 2048; // Higher resolution for better foam detail
 	L = 2000.0f; // size
+
+	Enable_WF = false; // Enable Wireframe [MODIFIABLE].
 
 	oceanMesh.setMode(OF_PRIMITIVE_TRIANGLES);
 
@@ -77,7 +83,8 @@ void ofApp::setup() {
 	if (!oceanShader.isLoaded()) {
 		ofLogError("ofApp") << "Failed to load ocean shader!";
 		ofLogError("ofApp") << "Make sure ocean.vert and ocean.frag are in bin/data/";
-	} else {
+	}
+	else {
 		ofLogNotice("ofApp") << "Ocean shader loaded successfully";
 		ofLogNotice("ofApp") << "Shader program ID: " << oceanShader.getProgram();
 
@@ -109,6 +116,97 @@ void ofApp::setup() {
 		vertices[i].y = gerstnerWave(vertices[i], t0);
 		oceanMesh.setVertex(i, vertices[i]);
 	}
+	
+	// ~~~~~~~~~~~~~~~~~~~~~~ [[[ MODIFIABLE CLOUD DATA ]]] ~~~~~~~~~~~~~~~~~~~~~~ 
+	// Clouds Pre-Gen data -> (Position data with respect to the grid, etc):
+	ofSeedRandom(0); // Current test seed for now: [0].
+	//ofSeedRandom(); // True Random.
+	float min_X = -(L/2), max_X = (L/2); // Minimum and maximum X position (with respect to the grid).
+	float min_Y = 350, max_Y = 400; // Minimum and maximum HEIGHT/Y position.
+	float min_Z = -(L/2), max_Z = (L/2); // Minimum and maximum Z position (with respect to the grid).
+	float min_S = 1.0f, max_S = 2.0f; // Minimum and maximum size.
+	float c_Num = 100; // Cloud Count.
+
+	cloudColor = glm::vec3(0.75, 0.75, 0.75); // White/grey for clouds.
+	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+	// -------------------------- [ CLOUD GENERATION ] --------------------------
+	for (int i = 0; i < c_Num; ++i) { // Create c_Num amount of clouds all with their own random data.
+		Cloud cloud; // Create cloud.
+		float xPos = ofRandom(min_X,max_X); // Choose random X.
+		float yPos = ofRandom(min_Y,max_Y); // Choose random Y.
+		float zPos = ofRandom(min_Z,max_Z); // Choose random Z.
+		float set_S = ofRandom(min_S, max_S); // Choose random size.
+		build_Cloud(cloud, glm::vec3(xPos, yPos, zPos), set_S); // Build our cloud with generated data.
+		clouds.push_back(cloud); // Add our new cloud to our list.
+	}
+
+	// -------------------------- [ CLOUD SHADERS ] --------------------------
+	cloudShader.load("cloud_light.vert", "cloud_light.frag"); // Attempt to load cloud shaders.
+	if (!cloudShader.isLoaded()) { // Check if CLOUD shader loaded successfully.
+		ofLogError("ofApp") << "Failed to load CLOUD shader!";
+		ofLogError("ofApp") << "Make sure cloud.vert and cloud.frag are in bin/data/";
+	}
+	else {
+		ofLogNotice("ofApp") << "CLOUD shader loaded successfully";
+		ofLogNotice("ofApp") << "Shader program ID: " << cloudShader.getProgram();
+
+		// Print active uniforms and attributes for debugging:
+		cloudShader.printActiveUniforms();
+		cloudShader.printActiveAttributes();
+	}
+	//
+}
+
+//--------------------------------------------------------------
+void ofApp::build_Cloud(Cloud& cloud, const glm::vec3& pos, float size) { // Cloud builder.
+	cloud.mesh.clear();
+	cloud.mesh.setMode(OF_PRIMITIVE_TRIANGLES); // Set primitive triangles as the mode.
+	cloud.mesh.enableNormals(); // Enable normals for the mesh.
+	cloud.pos = pos; // Set the position.
+	cloud.size = size; // Set the size.
+
+	// Create layers of the cloud.
+	struct Layer {
+		glm::vec3 off; // Offset with respect to the mesh position.
+		float rad; // Radius/Size.
+	};
+
+	vector<Layer> layers; // Layer list.
+	Layer centre; // Centre layer.
+	centre.off = glm::vec3(0.0f, 0.0f, 0.0f); // Set its offset.
+	centre.rad = ofRandom(60.0f,80.0f); // Set its radius.
+	layers.push_back(centre); // Add the centre to the list of layers.
+
+	int lay_C = (int)ofRandom(12,20); // Layer count for clouds(pick random amount between 12 and 20).
+	for (int i = 0; i < lay_C; ++i) {
+		float rot = ofRandom(0,TWO_PI); // Set the rotation (not necessary for spheres typically but useful if we use custom textures).
+		float dist = ofRandom(25.0f,75.0f); // Determine the distance for the layer from the centre.
+		float yOff = ofRandom(-25.0f,25.0f); // Determine the offset on y axis for the layer from the centre.
+		float rad = ofRandom(25.0f, 50.0f); // Size of the layer.
+		glm::vec3 offset(cos(rot)* dist, yOff, sin(rot)* dist); // Set the offset values.
+
+		layers.push_back({offset,rad}); // Construct/add new layer.
+	}
+
+	// Merge all of the layers to form the cloud itself:
+	for (const auto& lay : layers) { // Traverse the list of layers and merge them.
+		ofSpherePrimitive sphere; // Create the sphere.
+		sphere.setRadius(lay.rad); // Set the radius.
+
+		const ofMesh& mesh = sphere.getMesh(); // Grab mesh data (so we can update it).
+
+		for (int i = 0; i < mesh.getNumVertices(); ++i) { // Traverse each vertex of the sphere, and add it to the primary cloud itself.
+			cloud.mesh.addVertex(mesh.getVertex(i) + lay.off); // Add the spheres vertex to the cloud with its offset.
+			cloud.mesh.addNormal(mesh.getNormal(i)); // Add the spheres normal to the clouds mesh normals.
+		}
+
+		const vector<ofIndexType>& indices = mesh.getIndices(); // Get ALL indices of our current sphere after updating the vertices and normals.
+		for (int i = 0; i < indices.size(); ++i) { // Go through all the new layers indices and update the main clouds vertex indices with it.
+			cloud.mesh.addIndex(cloud.mesh.getNumVertices() + indices[i]); // Add the new indices from our new layer to the main cloud.
+		}
+	}
+
 }
 
 //--------------------------------------------------------------
@@ -163,7 +261,7 @@ void ofApp::draw() {
 
 	cam.begin();
 
-	if (oceanShader.isLoaded()) {
+	if (oceanShader.isLoaded() and !Enable_WF) {
 		// Use WORLD SPACE light position (don't transform by camera)
 		// This keeps the light fixed regardless of camera movement
 		oceanShader.begin();
@@ -202,25 +300,56 @@ void ofApp::draw() {
 		oceanMesh.draw();
 
 		oceanShader.end();
-	} else {
+	}
+	else {
 		// Fallback: wireframe without shader
 		ofSetColor(100, 150, 200);
 		oceanMesh.drawWireframe();
 	}
 
+	if (!clouds.empty()) { // Double check to make sure clouds actually exist.
+		if (cloudShader.isLoaded() and !Enable_WF) { // If cloud shader is loaded, draw with it.
+			cloudShader.begin(); // Initiate shader.
+			cloudShader.setUniform3f("lightPos",lightPosition); // Set the light position (that we got from setup).
+			cloudShader.setUniform3f("viewPos", 0.0f, 0.0f, 0.0f); // Camera origin.
+			cloudShader.setUniform3f("lightColor", lightColor); // Set light color.
+			cloudShader.setUniform3f("objectColor", cloudColor); // Set cloud color.
+
+			for (auto& cloud : clouds) { // Traverse all clouds and draw.
+				ofPushMatrix(); // Start the stack for this clouds draw.
+				ofTranslate(cloud.pos); // Apply position.
+				ofScale(cloud.size, cloud.size, cloud.size); // Apply size.
+				cloud.mesh.draw(); // Draw the cloud.
+				ofPopMatrix(); // So last cloud drawn doesn't effect the new one.
+			}
+
+			cloudShader.end();
+
+		}
+		else { // Fallback: Wireframe without shader.
+			ofSetColor(255,255,255); // Set white color.
+			for (auto& cloud : clouds) { // Traverse all clouds and draw.
+				ofPushMatrix(); // Start the stack for this clouds draw.
+				ofTranslate(cloud.pos); // Apply position.
+				ofScale(cloud.size, cloud.size, cloud.size); // Apply size.
+				cloud.mesh.drawWireframe(); // Draw the wireframe.
+				ofPopMatrix(); // So last cloud drawn doesn't effect the new one.
+			}
+		}
+	}
+
 	cam.end();
 
 	// Display info
-	ofSetColor(255);
+	ofSetColor(0,255,0); // Set to green for better visibility.
 	string info = "FPS: " + ofToString(ofGetFrameRate(), 1) + "\n";
 	info += "Vertices: " + ofToString(oceanMesh.getNumVertices()) + "\n";
 	info += "Indices: " + ofToString(oceanMesh.getNumIndices()) + "\n";
-	info += "Shader: " + string(oceanShader.isLoaded() ? "LOADED" : "NOT LOADED") + "\n\n";
-	info += "Press SPACE to toggle animation\n";
-	info += "Press +/- to adjust time scale\n";
+	info += "Ocean Shader: " + string(oceanShader.isLoaded() ? "LOADED" : "NOT LOADED") + "\n";
+	info += "Cloud Shader: " + string(cloudShader.isLoaded() ? "LOADED" : "NOT LOADED") + "\n\n";
 	info += "Press 'r' to reset camera\n\n";
-	info += "Animation: " + string(animateWaves ? "ON" : "OFF") + "\n";
-	info += "Time Scale: " + ofToString(timeScale, 2);
+	info += "[LMB + Hold + Drag] - Move the camera.\n";
+	info += "[MMB + Down/Up] - Zoom in and out.\n";
 	ofDrawBitmapString(info, 20, 20);
 }
 
@@ -228,11 +357,14 @@ void ofApp::draw() {
 void ofApp::keyPressed(int key) {
 	if (key == ' ') {
 		animateWaves = !animateWaves;
-	} else if (key == '+' || key == '=') {
+	}
+	else if (key == '+' || key == '=') {
 		timeScale += 0.1f;
-	} else if (key == '-' || key == '_') {
+	}
+	else if (key == '-' || key == '_') {
 		timeScale = max(0.0f, timeScale - 0.1f);
-	} else if (key == 'r' || key == 'R') {
+	}
+	else if (key == 'r' || key == 'R') {
 		// Reset camera
 		cam.setPosition(0, 100, 600);
 		cam.lookAt(glm::vec3(0, 0, 0));
